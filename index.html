@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en" class="">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimalist To-Do List</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom Styles */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for a cleaner look */
+        .task-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .task-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .task-list::-webkit-scrollbar-thumb {
+            background-color: #a0aec0; /* gray-400 */
+            border-radius: 20px;
+            border: 3px solid transparent;
+        }
+        .dark .task-list::-webkit-scrollbar-thumb {
+            background-color: #4a5568; /* gray-600 */
+        }
+        /* Animation for adding/removing tasks */
+        .task-item {
+            transition: all 0.3s ease-out;
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .task-item.removing {
+            animation: fadeOut 0.3s ease-out forwards;
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.9); height: 0; padding: 0; margin: 0; border: 0; }
+        }
+        /* Drag and drop styling */
+        .dragging {
+            opacity: 0.5;
+            background: #e2e8f0; /* gray-200 */
+        }
+        .dark .dragging {
+            background: #2d3748; /* gray-700 */
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+
+    <div class="container mx-auto max-w-2xl px-4 py-8 md:py-12">
+
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">My Tasks</h1>
+            <button id="theme-toggle" class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-gray-50 dark:focus:ring-offset-gray-900">
+                <!-- Sun Icon -->
+                <svg id="theme-toggle-sun" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <!-- Moon Icon -->
+                <svg id="theme-toggle-moon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+            </button>
+        </header>
+
+        <!-- Add Task Form -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
+            <form id="add-task-form" class="flex flex-col sm:flex-row items-center gap-3">
+                <input type="text" id="task-title-input" placeholder="What needs to be done?" class="flex-grow w-full bg-gray-100 dark:bg-gray-700 border-2 border-transparent focus:border-indigo-500 rounded-md px-4 py-2 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-0 transition" required>
+                <button type="submit" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-gray-50 dark:focus:ring-offset-gray-800 transition duration-200 ease-in-out transform hover:scale-105">Add Task</button>
+            </form>
+        </div>
+
+        <!-- Controls: Search & Filters -->
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
+            <div class="relative w-full md:w-1/2">
+                <input type="text" id="search-input" placeholder="Search tasks..." class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+            </div>
+            <div id="filter-buttons" class="flex items-center gap-2 p-1 bg-gray-200 dark:bg-gray-700 rounded-md">
+                <button data-filter="all" class="filter-btn active px-4 py-1 text-sm font-medium rounded-md">All</button>
+                <button data-filter="active" class="filter-btn px-4 py-1 text-sm font-medium rounded-md">Active</button>
+                <button data-filter="completed" class="filter-btn px-4 py-1 text-sm font-medium rounded-md">Completed</button>
+            </div>
+        </div>
+
+        <!-- Task List -->
+        <main id="task-list-container" class="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+            <ul id="task-list" class="task-list divide-y divide-gray-200 dark:divide-gray-700 max-h-[50vh] overflow-y-auto">
+                <!-- Tasks will be rendered here by JavaScript -->
+            </ul>
+             <div id="no-tasks-message" class="hidden text-center py-8 text-gray-500 dark:text-gray-400">
+                <p class="font-medium">You're all caught up!</p>
+                <p class="text-sm">Add a new task to get started.</p>
+            </div>
+        </main>
+
+        <!-- Footer Actions -->
+        <footer class="flex justify-between items-center mt-4 text-sm text-gray-500 dark:text-gray-400">
+            <p><span id="task-count">0</span> tasks left</p>
+            <button id="clear-completed-btn" class="hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition">Clear Completed</button>
+        </footer>
+
+    </div>
+
+    <!-- Edit Task Modal -->
+    <div id="edit-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Edit Task</h3>
+            <form id="edit-task-form">
+                <input type="hidden" id="edit-task-id">
+                <input type="text" id="edit-task-title-input" class="w-full bg-gray-100 dark:bg-gray-700 border-2 border-transparent focus:border-indigo-500 rounded-md px-4 py-2 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-0 transition mb-4" required>
+                <div class="flex justify-end gap-3">
+                    <button type="button" id="cancel-edit-btn" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 transition">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-md transition">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // DOM Elements
+        const taskList = document.getElementById('task-list');
+        const addTaskForm = document.getElementById('add-task-form');
+        const taskTitleInput = document.getElementById('task-title-input');
+        const taskCount = document.getElementById('task-count');
+        const filterButtons = document.getElementById('filter-buttons');
+        const clearCompletedBtn = document.getElementById('clear-completed-btn');
+        const searchInput = document.getElementById('search-input');
+        const noTasksMessage = document.getElementById('no-tasks-message');
+
+        // Edit Modal Elements
+        const editModal = document.getElementById('edit-modal');
+        const editTaskForm = document.getElementById('edit-task-form');
+        const editTaskIdInput = document.getElementById('edit-task-id');
+        const editTaskTitleInput = document.getElementById('edit-task-title-input');
+        const cancelEditBtn = document.getElementById('cancel-edit-btn');
+        
+        // Theme Toggle Elements
+        const themeToggle = document.getElementById('theme-toggle');
+        const sunIcon = document.getElementById('theme-toggle-sun');
+        const moonIcon = document.getElementById('theme-toggle-moon');
+
+        // App State
+        let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+        let currentFilter = 'all';
+        let currentSearchTerm = '';
+
+        // --- THEME MANAGEMENT ---
+        const applyTheme = (theme) => {
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+            } else {
+                document.documentElement.classList.remove('dark');
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+            }
+        };
+
+        const toggleTheme = () => {
+            const currentTheme = localStorage.getItem('theme') || 'light';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
+        };
+        
+        themeToggle.addEventListener('click', toggleTheme);
+        // Apply saved theme on initial load
+        applyTheme(localStorage.getItem('theme') || 'light');
+
+
+        // --- DATA & STATE MANAGEMENT ---
+        const saveTasks = () => {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        };
+
+        const sanitizeInput = (str) => {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(str));
+            return div.innerHTML;
+        }
+
+        const addTask = (title) => {
+            if (title.trim() === '') return;
+            const newTask = {
+                id: Date.now(),
+                title: sanitizeInput(title),
+                completed: false
+            };
+            tasks.unshift(newTask); // Add to the beginning of the array
+            saveTasks();
+            renderTasks();
+        };
+
+        const deleteTask = (id) => {
+            tasks = tasks.filter(task => task.id !== id);
+            saveTasks();
+        };
+
+        const toggleTaskCompletion = (id) => {
+            const task = tasks.find(task => task.id === id);
+            if (task) {
+                task.completed = !task.completed;
+                saveTasks();
+                renderTasks();
+            }
+        };
+        
+        const updateTask = (id, newTitle) => {
+            const task = tasks.find(task => task.id === id);
+            if (task) {
+                task.title = sanitizeInput(newTitle);
+                saveTasks();
+                renderTasks();
+                closeEditModal();
+            }
+        };
+
+        const clearCompletedTasks = () => {
+            tasks = tasks.filter(task => !task.completed);
+            saveTasks();
+            renderTasks();
+        };
+
+
+        // --- RENDERING ---
+        const renderTasks = () => {
+            taskList.innerHTML = ''; // Clear existing list
+
+            // Filter tasks based on current filter and search term
+            const filteredTasks = tasks.filter(task => {
+                const matchesFilter = (currentFilter === 'all') ||
+                                      (currentFilter === 'completed' && task.completed) ||
+                                      (currentFilter === 'active' && !task.completed);
+                const matchesSearch = task.title.toLowerCase().includes(currentSearchTerm.toLowerCase());
+                return matchesFilter && matchesSearch;
+            });
+
+            // Display "no tasks" message if applicable
+            if (tasks.length === 0) {
+                noTasksMessage.classList.remove('hidden');
+                noTasksMessage.querySelector('p.font-medium').textContent = "You're all caught up!";
+                noTasksMessage.querySelector('p.text-sm').textContent = "Add a new task to get started.";
+            } else if (filteredTasks.length === 0) {
+                 noTasksMessage.classList.remove('hidden');
+                 noTasksMessage.querySelector('p.font-medium').textContent = "No tasks found.";
+                 noTasksMessage.querySelector('p.text-sm').textContent = "Try a different filter or search term.";
+            } else {
+                noTasksMessage.classList.add('hidden');
+            }
+
+            // Render each task
+            filteredTasks.forEach(task => {
+                const taskElement = createTaskElement(task);
+                taskList.appendChild(taskElement);
+            });
+
+            // Update active task count
+            const activeTasksCount = tasks.filter(task => !task.completed).length;
+            taskCount.textContent = activeTasksCount;
+            
+            // Enable/disable clear completed button
+            const completedTasksCount = tasks.length - activeTasksCount;
+            clearCompletedBtn.style.visibility = completedTasksCount > 0 ? 'visible' : 'hidden';
+        };
+
+        const createTaskElement = (task) => {
+            const li = document.createElement('li');
+            li.className = `task-item flex items-center justify-between p-4 cursor-pointer transition duration-200 ease-in-out hover:bg-gray-100 dark:hover:bg-gray-700/50 ${task.completed ? 'opacity-50' : ''}`;
+            li.dataset.id = task.id;
+            li.draggable = true;
+
+            const completedClass = task.completed ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-200';
+
+            li.innerHTML = `
+                <div class="flex items-center gap-3 flex-grow">
+                    <input type="checkbox" ${task.completed ? 'checked' : ''} class="task-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                    <span class="task-title flex-grow ${completedClass}">${task.title}</span>
+                </div>
+                <div class="task-actions flex items-center gap-2">
+                    <button class="edit-btn p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z"></path></svg>
+                    </button>
+                    <button class="delete-btn p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
+            `;
+            return li;
+        };
+
+        // --- EVENT HANDLERS ---
+        addTaskForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            addTask(taskTitleInput.value);
+            taskTitleInput.value = '';
+        });
+
+        taskList.addEventListener('click', (e) => {
+            const target = e.target;
+            const taskElement = target.closest('.task-item');
+            if (!taskElement) return;
+
+            const taskId = Number(taskElement.dataset.id);
+
+            if (target.classList.contains('task-checkbox') || target.classList.contains('task-title')) {
+                toggleTaskCompletion(taskId);
+            } else if (target.closest('.delete-btn')) {
+                // Animate before deleting
+                taskElement.classList.add('removing');
+                taskElement.addEventListener('animationend', () => {
+                    deleteTask(taskId);
+                    renderTasks(); // Re-render after animation
+                }, { once: true });
+            } else if (target.closest('.edit-btn')) {
+                openEditModal(taskId);
+            }
+        });
+
+        filterButtons.addEventListener('click', (e) => {
+            const target = e.target.closest('.filter-btn');
+            if (target) {
+                currentFilter = target.dataset.filter;
+                // Update active button style
+                document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+                target.classList.add('active');
+                // Dynamically change active style based on theme
+                document.querySelectorAll('.filter-btn.active').forEach(btn => {
+                    btn.style.backgroundColor = document.documentElement.classList.contains('dark') ? '#4f46e5' : '#4f46e5'; /* indigo-600 */
+                    btn.style.color = 'white';
+                });
+                 document.querySelectorAll('.filter-btn:not(.active)').forEach(btn => {
+                    btn.style.backgroundColor = '';
+                    btn.style.color = '';
+                });
+                renderTasks();
+            }
+        });
+        
+        // Style active filter button on load
+        const styleActiveFilter = () => {
+             document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.classList.contains('active')) {
+                    btn.style.backgroundColor = document.documentElement.classList.contains('dark') ? '#4f46e5' : '#4f46e5';
+                    btn.style.color = 'white';
+                } else {
+                    btn.style.backgroundColor = '';
+                    btn.style.color = '';
+                }
+            });
+        };
+        themeToggle.addEventListener('click', styleActiveFilter);
+
+
+        clearCompletedBtn.addEventListener('click', clearCompletedTasks);
+
+        searchInput.addEventListener('input', (e) => {
+            currentSearchTerm = e.target.value;
+            renderTasks();
+        });
+        
+        // --- EDIT MODAL LOGIC ---
+        const openEditModal = (id) => {
+            const task = tasks.find(task => task.id === id);
+            if (task) {
+                editTaskIdInput.value = task.id;
+                editTaskTitleInput.value = task.title;
+                editModal.classList.remove('hidden');
+                editTaskTitleInput.focus();
+            }
+        };
+
+        const closeEditModal = () => {
+            editModal.classList.add('hidden');
+        };
+
+        editTaskForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = Number(editTaskIdInput.value);
+            const newTitle = editTaskTitleInput.value;
+            updateTask(id, newTitle);
+        });
+
+        cancelEditBtn.addEventListener('click', closeEditModal);
+        // Close modal on escape key
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !editModal.classList.contains('hidden')) {
+                closeEditModal();
+            }
+        });
+
+
+        // --- DRAG AND DROP ---
+        let draggedItem = null;
+
+        taskList.addEventListener('dragstart', (e) => {
+            draggedItem = e.target;
+            setTimeout(() => {
+                e.target.classList.add('dragging');
+            }, 0);
+        });
+
+        taskList.addEventListener('dragend', (e) => {
+            setTimeout(() => {
+                draggedItem.classList.remove('dragging');
+                draggedItem = null;
+            }, 0);
+        });
+        
+        taskList.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const afterElement = getDragAfterElement(taskList, e.clientY);
+            const draggable = document.querySelector('.dragging');
+            if (draggable) {
+                if (afterElement == null) {
+                    taskList.appendChild(draggable);
+                } else {
+                    taskList.insertBefore(draggable, afterElement);
+                }
+            }
+        });
+        
+        taskList.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const newOrderedIds = [...taskList.querySelectorAll('.task-item')].map(item => Number(item.dataset.id));
+            tasks.sort((a, b) => newOrderedIds.indexOf(a.id) - newOrderedIds.indexOf(b.id));
+            saveTasks();
+        });
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.task-item:not(.dragging)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        // --- INITIAL RENDER ---
+        renderTasks();
+        styleActiveFilter();
+    });
+    </script>
+</body>
+</html>
